@@ -46,7 +46,7 @@ namespace FamilyTree.RBTreeImpl {
         /// <summary>
         /// Whether this node has been deleted
         /// </summary>
-        public bool Deleted;
+        public bool Deleted; //TODO: Actually implement proper deletion at some point
 
         /// <summary>
         /// The value of this node
@@ -85,6 +85,9 @@ namespace FamilyTree.RBTreeImpl {
         /// </summary>
         /// <returns>The new root node of the tree</returns>
         public RedBlackTreeNode<T> Rebalance(){
+            //Okay, so, I'm not going to *pretend* to understand /why/ a redblack tree works
+            //but the rules for implementing one are fairly clear cut, so I can do that
+
             //This node is the root
             if (Parent == null){
                 Colour = TreeColours.Black;
@@ -95,7 +98,8 @@ namespace FamilyTree.RBTreeImpl {
                 return Root;
             }
 
-            //Okay, parent is red.
+            //Okay, parent is red from here on in.
+
             //Me, my parent, and my uncle are all red. 
             if (Uncle != null && Uncle.Colour == TreeColours.Red){
                 Uncle.Colour = TreeColours.Black;
@@ -204,21 +208,31 @@ namespace FamilyTree.RBTreeImpl {
         /// <param name="element">The element to insert</param>
         /// <returns>The new root node of the tree</returns>
         public RedBlackTreeNode<T> Insert(T element){
-            if (Value.CompareTo(element) > 0){
+            if (Value.CompareTo(element) > 0){ // Me > element
                 if (Left == null){
+                    //Empty subtree! We can insert, then rebalance.
                     Left = new RedBlackTreeNode<T>(element){Parent = this};
                     return Left.Rebalance();
                 }
                 return Left.Insert(element);
             }
-            if (Value.CompareTo(element) < 0){
-                if (Right == null){
+            if (Value.CompareTo(element) < 0){ // element > Me
+                if (Right == null){ 
+                    //Empty subtree! We can insert, then rebalance.
                     Right = new RedBlackTreeNode<T>(element){Parent = this};
                     return Right.Rebalance();
                 }
                 return Right.Insert(element);
             }
-            Deleted = false;
+
+            // element == me
+            if (Deleted){
+                Deleted = false;
+            }
+            else{
+                //I am not a RBTreeSet. Duplicates probably aren't intended.
+                throw new ArgumentException("Item already exists in tree!");
+            }
             return Root;
         }
 
@@ -246,7 +260,7 @@ namespace FamilyTree.RBTreeImpl {
         /// <param name="pred">A function of signature (T) => int, where int is a CompareTo style comparison</param>
         /// <returns>The node containing the correct value or null</returns>
         public RedBlackTreeNode<T> Get(Func<T, int> pred){
-            if (pred(Value) == 0){
+            if (pred(Value) == 0 && !Deleted){
                 return this;
             }
             if (pred(Value) < 0 && Right != null){
@@ -258,11 +272,20 @@ namespace FamilyTree.RBTreeImpl {
             return null;
         } 
 
+        /// <summary>
+        /// Returns whether the tree with this node as a root contains the specified element
+        /// </summary>
+        /// <param name="element">The element to find</param>
+        /// <returns>Whether it exists within the tree</returns>
         public bool Contains(T element){
             var node = GetNodeAt(element);
             return node != null && !node.Deleted;
         }
 
+        /// <summary>
+        /// Removes the entry in this (sub)tree, if it exists
+        /// </summary>
+        /// <param name="element">The element</param>
         public void Remove(T element){
             var node = GetNodeAt(element);
             if (node == null){
