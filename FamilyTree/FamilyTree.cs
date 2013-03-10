@@ -50,6 +50,26 @@ namespace FamilyTree
             _graph.AddVertex(aPerson);
         }
 
+        /// <summary>
+        /// Returns the person matching the given details
+        /// </summary>
+        /// <param name="name">The person's name</param>
+        /// <param name="DOB">The person's birth year</param>
+        /// <returns>A person object representing the person</returns>
+        private Person getPerson(string name, string DOB){
+            var mockup = new Person(name, DOB, "{{MOCKUP}}");
+            return _graph.Get(mockup);
+        }
+
+        /// <summary>
+        /// Returns a list of possible matches on the given name
+        /// </summary>
+        /// <param name="name">The person's name</param>
+        /// <returns>A person object representing the person</returns>
+        private IEnumerable<Person> getPersons(string name){
+            return _graph.Vertexes.Where(person => person.Name.Equals(name));
+        }
+
         /**
          * Links an individual to their mother. Both the individual and the
          * mother need already to appear as a Person in the family tree.
@@ -60,8 +80,8 @@ namespace FamilyTree
          */
         public void MakeLinkToMother(String aPerson, String aDOB,
                 String mName, String mDOB){
-            Person child = Person.Get(aPerson, aDOB);
-            Person mother = Person.Get(mName, mDOB);
+            Person child = getPerson(aPerson, aDOB);
+            Person mother = getPerson(mName, mDOB);
 
             _graph.AddEdge(child, Relationship.HasTheMotherOf, mother);
             _graph.AddEdge(mother, Relationship.IsAParentOf, child);
@@ -78,8 +98,8 @@ namespace FamilyTree
         public void MakeLinkToFather(String aPerson, String aDOB,
                 String fName, String fDOB)
         {
-            Person child = Person.Get(aPerson, aDOB);
-            Person father = Person.Get(fName, fDOB);
+            Person child = getPerson(aPerson, aDOB);
+            Person father = getPerson(fName, fDOB);
 
             _graph.AddEdge(child, Relationship.HasTheFatherOf, father);
             _graph.AddEdge(father, Relationship.IsAParentOf, child);
@@ -96,8 +116,8 @@ namespace FamilyTree
          */
         public void RecordWedding(String partner1Name, String aDOB1,
                 String partner2Name, String aDOB2){
-            Person one = Person.Get(partner1Name, aDOB1);
-            Person two = Person.Get(partner2Name, aDOB2);
+            Person one = getPerson(partner1Name, aDOB1);
+            Person two = getPerson(partner2Name, aDOB2);
 
             _graph.AddUndirectedEdge(one, Relationship.IsMarriedTo, two);
         }
@@ -113,8 +133,8 @@ namespace FamilyTree
         public void RecordDivorce(String partner1Name, String aDOB1,
                 String partner2Name, String aDOB2)
         {
-            Person one = Person.Get(partner1Name, aDOB1);
-            Person two = Person.Get(partner2Name, aDOB2);
+            Person one = getPerson(partner1Name, aDOB1);
+            Person two = getPerson(partner2Name, aDOB2);
 
             _graph.RemoveUndirectedEdge(one, Relationship.IsMarriedTo, two);
             _graph.AddUndirectedEdge(one, Relationship.IsDivorcedFrom, two);
@@ -126,7 +146,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListPersonDetails(String personName){
-            var people = FilterPersonsByUserInput(Person.Get(personName));
+            var people = FilterPersonsByUserInput(getPersons(personName));
             foreach (var person in people){
                 Console.WriteLine("Personal Details: {0}", person);
                 Console.WriteLine("=================");
@@ -158,7 +178,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListParentDetails(String personName){
-            var people = FilterPersonsByUserInput(Person.Get(personName));
+            var people = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in people){
                 Person mother = child.Mother(_graph);
                 Person father = child.Father(_graph);
@@ -180,7 +200,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListChildren(String personName){
-            var parents = FilterPersonsByUserInput(Person.Get(personName));
+            var parents = FilterPersonsByUserInput(getPersons(personName));
             foreach (var parent in parents){
                 var kids = parent.Children(_graph);
 
@@ -206,7 +226,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListSiblings(String personName){
-            var possibleMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in possibleMatches){
                 var kids = child.Siblings(_graph);
 
@@ -236,7 +256,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListPaternalLineage(String personName){
-            var possibleMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in possibleMatches){
                 Person father = child.Father(_graph);
 
@@ -259,7 +279,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListMaternalLineage(String personName){
-            var possibleMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in possibleMatches){
                 Person mother = child.Mother(_graph);
                 Console.WriteLine("Maternal Lineage for {0}:", child);
@@ -281,7 +301,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListGrandParents(String personName){
-            var possibleMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in possibleMatches){
                 var grandparents = child.Parents(_graph).Parents(_graph);
 
@@ -306,7 +326,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListGrandChildren(String personName){
-            var possibleMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
 
             foreach (var grandparent in possibleMatches){
                 var kids = grandparent.Children(_graph).Children(_graph);
@@ -333,7 +353,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListCousins(String personName){
-            var possibleMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
 
             foreach (var child in possibleMatches){
                 var cousins = child.Parents(_graph).Siblings(_graph).Children(_graph);
@@ -361,7 +381,7 @@ namespace FamilyTree
          *                            3=great-grandparents etc.
          */
         public void ListGreatNGrandParents(String personName, int numberOfGenerations){
-            var potentialMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var potentialMatches = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in potentialMatches){
                 IEnumerable<Person> parents = new List<Person>{child};
 
@@ -393,7 +413,7 @@ namespace FamilyTree
          *                            3=great-grandchildren etc.
          */
         public void ListGreatNGrandChildren(String personName, int numberOfGenerations){
-            var potentialMatches = FilterPersonsByUserInput(Person.Get(personName));
+            var potentialMatches = FilterPersonsByUserInput(getPersons(personName));
             foreach (var child in potentialMatches) {
                 IEnumerable<Person> children = new List<Person> { child };
 
@@ -422,7 +442,7 @@ namespace FamilyTree
          * @param aDOB
          */
         public void RecordAdoption(String personName, String aDOB){
-            var person = Person.Get(personName, aDOB);
+            var person = getPerson(personName, aDOB);
             var parents = person.Parents(_graph);
             foreach (var parent in parents){
                 _graph.AddEdge(person, Relationship.WasAdoptedBy, parent);

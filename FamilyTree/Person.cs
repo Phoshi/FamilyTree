@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace FamilyTree
 {
@@ -9,14 +7,6 @@ namespace FamilyTree
  * @author David
  */
     public class Person : IComparable<Person>{
-        private static List<Person> _people = new List<Person>(); 
-        public static Person Get(string name, string dateofbirth){
-            return (from person in _people where person.Name == name && person.DateOfBirth == dateofbirth select person).FirstOrDefault();
-        }
-        public static IEnumerable<Person> Get(string name){
-            return (from person in _people where person.Name == name select person);
-        }  
-
         public string Name { get; internal set; }
         public string DateOfBirth { get; internal set; }
         public string BirthPlace { get; internal set; }
@@ -29,8 +19,6 @@ namespace FamilyTree
             Name = aName;
             DateOfBirth = aDOB;
             BirthPlace = aBirthPlace;
-
-            _people.Add(this);
         }
 
         public int CompareTo(Person other){
