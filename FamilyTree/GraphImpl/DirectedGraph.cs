@@ -113,7 +113,7 @@ namespace FamilyTree.GraphImpl {
         /// <param name="two">Another vertex</param>
         public void RemoveUndirectedEdge(TVertex one, TEdge edge, TVertex two){
             RemoveEdge(one, edge, two);
-            RemoveEdge(two, edge, two);
+            RemoveEdge(two, edge, one);
         }
 
         /// <summary>
