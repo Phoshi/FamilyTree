@@ -43,6 +43,32 @@ namespace GraphTestProject {
             var two = graph.GetOtherEdgeInRelationship("One", "PlusOne");
 
             Assert.IsTrue(two == "Two");
+            Assert.IsTrue(graph.TestRelationship("One", "PlusOne", "Two"));
+            Assert.IsFalse(graph.TestRelationship("One", "PlusOne", "Three"));
+
+            Assert.IsTrue(graph.GetEdgesTo("Two").Any(edge => edge.JoinType.Equals("PlusOne") && edge.One.Equals("One")));
+        }
+
+        [TestMethod]
+        public void TestVertexRetrieve(){
+            var graph = new DirectedGraph<string, string>();
+            graph.AddVertex("One");
+            graph.AddVertex("Two");
+            Assert.AreEqual("One", graph.Get("One"));
+        }
+
+        [TestMethod]
+        public void TestUndirectedEdges(){
+            var graph = new DirectedGraph<string, string>();
+            graph.AddVertex("One");
+            graph.AddVertex("Two");
+            graph.AddVertex("Three");
+
+            graph.AddUndirectedEdge("One", "AreOneOff", "Two");
+            Assert.IsTrue(graph.TestRelationship("One", "AreOneOff", "Two"));
+
+            graph.RemoveUndirectedEdge("One", "AreOneOff", "Two");
+            Assert.IsFalse(graph.TestRelationship("One", "AreOneOff", "Two"));
         }
 
         [TestMethod]
