@@ -20,6 +20,21 @@ namespace GraphTestProject {
         }
 
         [TestMethod]
+        public void TestSpeed(){
+            var graph = new DirectedGraph<string, string>();
+            //insert
+            for (int i = 0; i < 100000; i++){
+                graph.AddVertex(i.ToString());
+            }
+            for (int i = 40000; i < 60000; i++){
+                graph.AddEdge(i.ToString(), "PlusOne", (i+1).ToString());
+            }
+            for (int i = 50000; i < 55000; i++){
+                Assert.IsTrue(graph.TestRelationship(i.ToString(), "PlusOne", (i + 1).ToString()));
+            }
+        }
+
+        [TestMethod]
         public void TestEdges(){
             var graph = new DirectedGraph<string, string>();
             graph.AddVertex("One");
