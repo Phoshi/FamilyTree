@@ -53,5 +53,18 @@ namespace GraphTestProject {
             }
             Assert.IsTrue(graph.Vertexes.Count() == 100);
         }
+
+        [TestMethod]
+        public void TestEdgeRemove(){
+            var graph = new DirectedGraph<string, string>();
+            graph.AddVertex("One");
+            graph.AddVertex("Two");
+
+            graph.AddEdge("One", "PlusOneIs", "Two");
+            graph.AddEdge("One", "PlusTwoIs", "Two");
+            graph.RemoveEdge("One", "PlusTwoIs", "Two");
+
+            Assert.IsFalse(graph.TestRelationship("One", "PlusTwoIs", "Two"));
+        }
     }
 }
