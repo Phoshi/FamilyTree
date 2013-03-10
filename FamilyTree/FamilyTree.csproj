@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GraphImpl\VertexEdgeContainer.cs" />
     <Compile Include="RBTreeImpl\ITree.cs" />
     <Compile Include="RBTreeImpl\TreeColours.cs" />
     <Compile Include="FamilyTree.cs" />
