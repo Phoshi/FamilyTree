@@ -10,29 +10,45 @@ namespace FamilyTree.GraphImpl {
     /// <typeparam name="TVertex">The vertex (node) type</typeparam>
     /// <typeparam name="TEdge">The edge (relationship / link) type</typeparam>
     public class DirectedGraph<TVertex, TEdge> where TVertex : class, IComparable<TVertex>{
-        /// <summary>
-        /// The internal vertex list
-        /// </summary>
-        private ITree<Vertex<TVertex>> _vertexes = new RedBlackTree<Vertex<TVertex>>();
 
         /// <summary>
-        /// The internal edge list
+        /// The internal vertex container list. Contains a number of entries which link verticies to their edges.
         /// </summary>
-        private ITree<Edge<Vertex<TVertex>, TEdge>> _edges = new RedBlackTree<Edge<Vertex<TVertex>, TEdge>>();
+        private readonly ITree<VertexEdgeContainer<Vertex<TVertex>, Edge<Vertex<TVertex>, TEdge>>> _vertexContainerList =
+            new RedBlackTree<VertexEdgeContainer<Vertex<TVertex>, Edge<Vertex<TVertex>, TEdge>>>();
 
         /// <summary>
         /// Returns an enumerable of all verticies in an arbitrary order (I.E. Not input order or sorted)
         /// </summary>
-        public IEnumerable<TVertex> Vertexes{get { return (from vertex in _vertexes select vertex.Value); }}
+        public IEnumerable<TVertex> Vertexes{
+            get { return (from vertex in _vertexContainerList select vertex.Vertex.Value); }
+        }
 
         /// <summary>
         /// Return an enumerable of edges in an arbitrary order (I.E. Not input order or sorted)
         /// </summary>
-        public IEnumerable<Edge<TVertex, TEdge>> Edges {get{
-            return
-                (from edge in _edges
-                 select new Edge<TVertex, TEdge>(edge.JoinType, edge.Vertexes.First().Value, edge.Vertexes.Last().Value));
-        }}
+        public IEnumerable<Edge<TVertex, TEdge>> Edges{
+            get{
+                var allEdges = new List<Edge<TVertex, TEdge>>();
+                foreach (var container in Vertexes.Select(getVertexContainer)){
+                    //We can't simply return the associated edges, as those link directly to the Vertex wrapper, which would expose the graph to outsiders
+                    //Thus we iterate over them and create new, safe edges
+                    allEdges.AddRange(from edge in container.EdgesFrom select sanitise(edge));
+                }
+
+                return allEdges;
+            }
+        }
+
+        /// <summary>
+        /// Returning the internal edges would expose the vertex wrappers to the outside world
+        /// So we "sanitise" them to act as a sane interface
+        /// </summary>
+        /// <param name="unsafeEdge">The internal edge</param>
+        /// <returns>A safe edge</returns>
+        private Edge<TVertex, TEdge> sanitise(Edge<Vertex<TVertex>, TEdge> unsafeEdge){
+            return new Edge<TVertex, TEdge>(unsafeEdge.JoinType, unsafeEdge.One.Value, unsafeEdge.Two.Value);
+        } 
 
         /// <summary>
         /// Adds a new vertex to the graph. Must be unique.
@@ -40,7 +56,8 @@ namespace FamilyTree.GraphImpl {
         /// <param name="element"></param>
         public void AddVertex(TVertex element){
             var newVertex = new Vertex<TVertex>(element);
-            _vertexes.Insert(newVertex);
+            var vertexContainer = new VertexEdgeContainer<Vertex<TVertex>, Edge<Vertex<TVertex>, TEdge>>(newVertex);
+            _vertexContainerList.Insert(vertexContainer);
         }
 
         /// <summary>
@@ -50,11 +67,14 @@ namespace FamilyTree.GraphImpl {
         /// <param name="type">The relationship type</param>
         /// <param name="two">The end vertex</param>
         public void AddEdge(TVertex one, TEdge type, TVertex two){
-            var vertexOne = getVertex(one);
-            var vertexTwo = getVertex(two);
+            //In order to efficiently allow the "GetEdgesTo" operation, all edges must be added to both verticies' container.
+            var vertexOneContainer = getVertexContainer(one);
+            var vertexTwoContainer = getVertexContainer(two);
 
-            var edge = new Edge<Vertex<TVertex>, TEdge>(type, vertexOne, vertexTwo);
-            _edges.Insert(edge);
+            var edge = new Edge<Vertex<TVertex>, TEdge>(type, vertexOneContainer.Vertex, vertexTwoContainer.Vertex);
+
+            vertexOneContainer.AddEdge(edge);
+            vertexTwoContainer.AddEdge(edge, toVertex: true);
         }
 
         /// <summary>
@@ -75,20 +95,14 @@ namespace FamilyTree.GraphImpl {
         /// <param name="type">The relationship type</param>
         /// <param name="two">The end vertex</param>
         public void RemoveEdge(TVertex one, TEdge type, TVertex two){
-            var edges = GetEdgesFrom(one);
-            var edgeToRemove = (from edge in edges where edge.JoinType.Equals(type) select edge).FirstOrDefault();
+            var vertexOneContainer = getVertexContainer(one);
+            var vertexTwoContainer = getVertexContainer(two);
 
-            if (edgeToRemove != null){
-                var literalEdge = (from edge in _edges
-                                  where
-                                      edge.One.Value.Equals(edgeToRemove.One) && 
-                                      edge.Two.Value.Equals(edgeToRemove.Two) &&
-                                      edge.JoinType.Equals(edgeToRemove.JoinType)
-                                  select edge).First();
-                
-                _edges.Remove(literalEdge);
-            }
+            var vertexToRemove =
+                vertexOneContainer.EdgesFrom.First(item => item.JoinType.Equals(type) && item.Two.Value.Equals(two));
 
+            vertexOneContainer.RemoveEdge(vertexToRemove);
+            vertexTwoContainer.RemoveEdge(vertexToRemove, toVertex: true);
         }
 
         /// <summary>
@@ -107,8 +121,8 @@ namespace FamilyTree.GraphImpl {
         /// </summary>
         /// <param name="element"></param>
         /// <returns>The vertex container or null</returns>
-        private Vertex<TVertex> getVertex(TVertex element){
-            return _vertexes.Get(item => item.Value.CompareTo(element));
+        private VertexEdgeContainer<Vertex<TVertex>, Edge<Vertex<TVertex>, TEdge>> getVertexContainer(TVertex element){
+            return _vertexContainerList.Get(item => item.Vertex.Value.CompareTo(element));
         }
 
         /// <summary>
@@ -117,7 +131,7 @@ namespace FamilyTree.GraphImpl {
         /// <param name="element">The node</param>
         /// <returns>An enumerable of edges</returns>
         public IEnumerable<Edge<TVertex, TEdge>> GetEdgesFrom(TVertex element){
-            return (from edge in Edges where edge.One.Equals(element) select edge);
+            return from edge in getVertexContainer(element).EdgesFrom select sanitise(edge);
         }
 
         /// <summary>
@@ -126,7 +140,7 @@ namespace FamilyTree.GraphImpl {
         /// <param name="element">The node</param>
         /// <returns>An enumerable of edges</returns>
         public IEnumerable<Edge<TVertex, TEdge>> GetEdgesTo(TVertex element){
-            return (from edge in Edges where edge.Two.Equals(element) select edge);
+            return from edge in getVertexContainer(element).EdgesTo select sanitise(edge);
         }
 
         /// <summary>
@@ -136,9 +150,7 @@ namespace FamilyTree.GraphImpl {
         /// <param name="relationship">The relationship to follow</param>
         /// <returns>An enumerable of related verticies</returns>
         public IEnumerable<TVertex> GetOtherEdgesInRelationship(TVertex element, TEdge relationship){
-            var allEdges = GetEdgesFrom(element);
-            var correctEdges = allEdges.Where(edge => edge.JoinType.Equals(relationship));
-            return from edge in correctEdges select edge.Two;
+            return GetEdgesFrom(element).Where(edge => edge.JoinType.Equals(relationship)).Select(edge => edge.Two);
         }
 
         /// <summary>
@@ -160,11 +172,18 @@ namespace FamilyTree.GraphImpl {
         /// <param name="relationship"></param>
         /// <returns></returns>
         public TVertex GetOtherEdgeInRelationship(TVertex element, TEdge relationship){
-            var edges = GetOtherEdgesInRelationship(element, relationship);
-            if (edges.Any()){
-                return edges.First();
-            }
-            return null;
+            return GetOtherEdgesInRelationship(element, relationship).FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Returns the graph's canonical copy of the matched element.
+        /// Element must obviously implement a CompareTo operator which 
+        /// does not require byte-for-byte equality to be considered equal
+        /// </summary>
+        /// <param name="element">The element to match on</param>
+        /// <returns>The canonical copy</returns>
+        public TVertex Get(TVertex element){
+            return _vertexContainerList.Get(item => item.Vertex.Value.CompareTo(element)).Vertex.Value;
         }
     }
 }
