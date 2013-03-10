@@ -26,6 +26,9 @@ namespace FamilyTree.RBTreeImpl{
         public bool MoveNext(){
             if (_pointer == null){
                 _pointer = _root;
+                if (_root != null && _root.Deleted){
+                    return MoveNext();
+                }
                 return _root != null;
             }
 
