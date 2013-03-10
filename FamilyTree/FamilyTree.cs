@@ -5,38 +5,9 @@ using FamilyTree.GraphImpl;
 
 namespace FamilyTree
 {
-    /**
- * TestFamilyTree provides a text-based interface for a family tree
- * The interface consists of a top-level menu with options to:
- * <dl>
- * <dt>Load Data
- * <dd> - loads a set of test data. This, together with any
- * other necessary data, will used when you run your code during the
- * demonstration.</dd>
- * <dt>Input Data
- * <dd> - provides options to add a person, make a link to mother or father
- * or record a wedding, divorce or adoption </dd>
- * <dt>Make a Query
- * <dd> - provides options to list details of an individual and their
- * ancestors or descendants.</dd>
- * </dl>
- * <p>
- * Choosing an option from the input data or query menus results in a
- * call to an empty FamilyTree method. You need to implement the methods in
- * FamilyTree.
- *
- * @author      David Coward
- * @author      Jane Berry
- * @version     2
- */
-
-
-/**
- * Once complete this class manages a family tree.
- * You need to complete the methods whose headers are given here.
- * 
- * @author cjberry
- */
+    /// <summary>
+    /// This class models a family tree.
+    /// </summary>
     public class FamilyTree
     {
         private readonly DirectedGraph<Person, Relationship> _graph = new DirectedGraph<Person, Relationship>();
@@ -54,10 +25,16 @@ namespace FamilyTree
         /// Returns the person matching the given details
         /// </summary>
         /// <param name="name">The person's name</param>
-        /// <param name="DOB">The person's birth year</param>
+        /// <param name="dateOfBirth">The person's birth year</param>
         /// <returns>A person object representing the person</returns>
-        private Person getPerson(string name, string DOB){
-            var mockup = new Person(name, DOB, "{{MOCKUP}}");
+        private Person getPerson(string name, string dateOfBirth){
+            //In order to perform logic on the person, we need to get our stored copy out.
+            //We could have just kept one around in some regular mapping like cavemen, but
+            //we have a copy in our graph and happen to know that somebody can be uniquely
+            //identified based only on name and date of birth. 
+            //Yes, it's a bit of a hack, but this way we get O(lg n) lookup times on partial 
+            //matches without needing to double the storage to maintain a hashmap or something
+            var mockup = new Person(name, dateOfBirth, "{{MOCKUP}}");
             return _graph.Get(mockup);
         }
 
@@ -66,7 +43,11 @@ namespace FamilyTree
         /// </summary>
         /// <param name="name">The person's name</param>
         /// <returns>A person object representing the person</returns>
-        private IEnumerable<Person> getPersons(string name){
+        private IEnumerable<Person> getMatchingPeople(string name){
+            //dgraph.Vertexes is an enumerable type that does a naive depth first
+            //travesal of the entire graph. Which is nice, because we need an 
+            //exhaustive traversal to return every single person with a 
+            //matching name.
             return _graph.Vertexes.Where(person => person.Name.Equals(name));
         }
 
@@ -80,8 +61,8 @@ namespace FamilyTree
          */
         public void MakeLinkToMother(String aPerson, String aDOB,
                 String mName, String mDOB){
-            Person child = getPerson(aPerson, aDOB);
-            Person mother = getPerson(mName, mDOB);
+            var child = getPerson(aPerson, aDOB);
+            var mother = getPerson(mName, mDOB);
 
             _graph.AddEdge(child, Relationship.HasTheMotherOf, mother);
             _graph.AddEdge(mother, Relationship.IsAParentOf, child);
@@ -98,8 +79,8 @@ namespace FamilyTree
         public void MakeLinkToFather(String aPerson, String aDOB,
                 String fName, String fDOB)
         {
-            Person child = getPerson(aPerson, aDOB);
-            Person father = getPerson(fName, fDOB);
+            var child = getPerson(aPerson, aDOB);
+            var father = getPerson(fName, fDOB);
 
             _graph.AddEdge(child, Relationship.HasTheFatherOf, father);
             _graph.AddEdge(father, Relationship.IsAParentOf, child);
@@ -116,8 +97,8 @@ namespace FamilyTree
          */
         public void RecordWedding(String partner1Name, String aDOB1,
                 String partner2Name, String aDOB2){
-            Person one = getPerson(partner1Name, aDOB1);
-            Person two = getPerson(partner2Name, aDOB2);
+            var one = getPerson(partner1Name, aDOB1);
+            var two = getPerson(partner2Name, aDOB2);
 
             _graph.AddUndirectedEdge(one, Relationship.IsMarriedTo, two);
         }
@@ -133,9 +114,11 @@ namespace FamilyTree
         public void RecordDivorce(String partner1Name, String aDOB1,
                 String partner2Name, String aDOB2)
         {
-            Person one = getPerson(partner1Name, aDOB1);
-            Person two = getPerson(partner2Name, aDOB2);
+            var one = getPerson(partner1Name, aDOB1);
+            var two = getPerson(partner2Name, aDOB2);
 
+            //Presumably once you've divorced somebody you are no longer married to them,
+            //which is only really useful for in-memory tree updates.
             _graph.RemoveUndirectedEdge(one, Relationship.IsMarriedTo, two);
             _graph.AddUndirectedEdge(one, Relationship.IsDivorcedFrom, two);
         }
@@ -146,12 +129,21 @@ namespace FamilyTree
          * @param personName
          */
         public void ListPersonDetails(String personName){
-            var people = FilterPersonsByUserInput(getPersons(personName));
+            var people = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var person in people){
+                //Dump as much information as we can without it being overloading.
                 Console.WriteLine("Personal Details: {0}", person);
                 Console.WriteLine("=================");
+
+                //An uninitialised instance of person will convert to a string showing no records,
+                //meaning we can use the null coalescing operator to quickly define an escape case.
                 Console.WriteLine("\tMother: {0}", person.Mother(_graph) ?? new Person());
                 Console.WriteLine("\tFather: {0}", person.Father(_graph) ?? new Person());
+
+                //Not splitting this into adoptive mother and father because I'm not quite certain
+                //that you can't be adopted by more than two people. Certainly don't want to be
+                //discriminatory, two mums or dads is fine.
                 if (person.AdoptiveParents(_graph).Any()){
                     Console.WriteLine("\tWas adopted by {0}", string.Join(" and ", person.AdoptiveParents(_graph)));
                 }
@@ -178,16 +170,20 @@ namespace FamilyTree
          * @param personName
          */
         public void ListParentDetails(String personName){
-            var people = FilterPersonsByUserInput(getPersons(personName));
+            var people = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var child in people){
-                Person mother = child.Mother(_graph);
-                Person father = child.Father(_graph);
+                var mother = child.Mother(_graph);
+                var father = child.Father(_graph);
 
                 Console.WriteLine("Parental Details: {0}", child);
                 Console.WriteLine("=================");
 
                 Console.WriteLine("\tMother: {0}", mother ?? new Person());
                 Console.WriteLine("\tFather: {0}", father ?? new Person());
+                if (child.AdoptiveParents(_graph).Any()) {
+                    Console.WriteLine("\tWas adopted by {0}", string.Join(" and ", child.AdoptiveParents(_graph)));
+                }
                 Console.WriteLine();
             }
 
@@ -200,7 +196,8 @@ namespace FamilyTree
          * @param personName
          */
         public void ListChildren(String personName){
-            var parents = FilterPersonsByUserInput(getPersons(personName));
+            var parents = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var parent in parents){
                 var kids = parent.Children(_graph);
 
@@ -226,7 +223,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListSiblings(String personName){
-            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
+            var possibleMatches = filterPeopleByUserInput(getMatchingPeople(personName));
             foreach (var child in possibleMatches){
                 var kids = child.Siblings(_graph);
 
@@ -236,6 +233,9 @@ namespace FamilyTree
 
                     foreach (var kid in kids){
                         Console.WriteLine("\t{0} {1}", kid,
+                                          //If the intersection of the two childrens' parents is not equal
+                                          //to the same set of parents, then they are not full siblings 
+                                          //Conservative. Will only list (half) in cases where it can be confirmed.
                                           (kid.Parents(_graph).Intersect(child.Parents(_graph)).Count() ==
                                            child.Parents(_graph).Count())
                                               ? ""
@@ -256,12 +256,14 @@ namespace FamilyTree
          * @param personName
          */
         public void ListPaternalLineage(String personName){
-            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
+            var possibleMatches = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var child in possibleMatches){
-                Person father = child.Father(_graph);
+                var father = child.Father(_graph);
 
                 Console.WriteLine("Paternal Lineage for {0}:", child);
                 Console.WriteLine("=================");
+
                 int indent = 1;
                 while (father != null){
                     Console.Write(string.Concat(Enumerable.Repeat("\t", indent++)));
@@ -279,11 +281,14 @@ namespace FamilyTree
          * @param personName
          */
         public void ListMaternalLineage(String personName){
-            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
+            var possibleMatches = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var child in possibleMatches){
-                Person mother = child.Mother(_graph);
+                var mother = child.Mother(_graph);
+
                 Console.WriteLine("Maternal Lineage for {0}:", child);
                 Console.WriteLine("=================");
+
                 int indent = 1;
                 while (mother != null){
                     Console.Write(string.Concat(Enumerable.Repeat("\t", indent++)));
@@ -301,7 +306,8 @@ namespace FamilyTree
          * @param personName
          */
         public void ListGrandParents(String personName){
-            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
+            var possibleMatches = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var child in possibleMatches){
                 var grandparents = child.Parents(_graph).Parents(_graph);
 
@@ -326,7 +332,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListGrandChildren(String personName){
-            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
+            var possibleMatches = filterPeopleByUserInput(getMatchingPeople(personName));
 
             foreach (var grandparent in possibleMatches){
                 var kids = grandparent.Children(_graph).Children(_graph);
@@ -353,7 +359,7 @@ namespace FamilyTree
          * @param personName
          */
         public void ListCousins(String personName){
-            var possibleMatches = FilterPersonsByUserInput(getPersons(personName));
+            var possibleMatches = filterPeopleByUserInput(getMatchingPeople(personName));
 
             foreach (var child in possibleMatches){
                 var cousins = child.Parents(_graph).Siblings(_graph).Children(_graph);
@@ -381,7 +387,8 @@ namespace FamilyTree
          *                            3=great-grandparents etc.
          */
         public void ListGreatNGrandParents(String personName, int numberOfGenerations){
-            var potentialMatches = FilterPersonsByUserInput(getPersons(personName));
+            var potentialMatches = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var child in potentialMatches){
                 IEnumerable<Person> parents = new List<Person>{child};
 
@@ -413,7 +420,8 @@ namespace FamilyTree
          *                            3=great-grandchildren etc.
          */
         public void ListGreatNGrandChildren(String personName, int numberOfGenerations){
-            var potentialMatches = FilterPersonsByUserInput(getPersons(personName));
+            var potentialMatches = filterPeopleByUserInput(getMatchingPeople(personName));
+
             foreach (var child in potentialMatches) {
                 IEnumerable<Person> children = new List<Person> { child };
 
@@ -449,8 +457,9 @@ namespace FamilyTree
             }
         }
 
-        public IEnumerable<Person> FilterPersonsByUserInput(IEnumerable<Person> people){
+        private IEnumerable<Person> filterPeopleByUserInput(IEnumerable<Person> people){
             if (people.Count() < 2){
+                //If there are zero or one people in the collection, we have nothing to filter.
                 return people;
             }
             Console.WriteLine("Possible Matches: {0}", string.Join(", ", people));
@@ -458,15 +467,18 @@ namespace FamilyTree
             var input = Console.ReadLine();
 
             if (people.Any(person => person.DateOfBirth == input)){
+                //If the date of birth matches any input, return that person.
                 return people.Where(person => person.DateOfBirth == input);
             }
 
             if (string.IsNullOrWhiteSpace(input)){
+                //If the user gave no input, return the whole collection
                 return people;
             }
 
+            //Otherwise try again, because those are the only options.
             Console.WriteLine("No such person with that date of birth. Do try again.");
-            return FilterPersonsByUserInput(people);
+            return filterPeopleByUserInput(people);
         } 
     }   
 }
